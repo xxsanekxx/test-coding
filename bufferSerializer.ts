@@ -180,7 +180,7 @@ class BufferSerializer {
         // start buffer list from zero byte
         this._bufferList.push(Buffer.alloc(1));
 
-        this.toBufferInternal(validData);
+        this._toBufferInternal(validData);
 
         const resultBuff: Buffer = Buffer.concat(this._bufferList);
         this._bufferList = [];
@@ -188,46 +188,46 @@ class BufferSerializer {
         return resultBuff;
     }
 
-    toBufferInternal(data: any) {
+    private _toBufferInternal(data: any) {
         const type = typeof data;
 
         if (type === 'object') {
             if (data === null) {
-                this.toBufferNull();
+                this._toBufferNull();
                 return;
             }
 
             if (Array.isArray(data)) {
-                this.toBufferArray(data);
+                this._toBufferArray(data);
                 return;
             }
 
             if (Object.prototype.toString.call(data) === "[object Date]" && !isNaN(data)) {
-                this.toBufferDate(data);
+                this._toBufferDate(data);
                 return;
             }
 
             if (data instanceof Map) {
-                this.toBufferMap(data as Map<any, any>);
+                this._toBufferMap(data as Map<any, any>);
                 return;
             }
 
             if (data instanceof Set) {
-                this.toBufferSet(data as Set<any>);
+                this._toBufferSet(data as Set<any>);
                 return;
             }
 
-            this.toBufferObject(data);
+            this._toBufferObject(data);
         } else if (type === 'string') {
-            this.toBufferString(data);
+            this._toBufferString(data);
         } else if (type === 'number') {
-            this.toBufferNumber(data);
+            this._toBufferNumber(data);
         } else if (type === 'boolean') {
-            this.toBufferBoolean(data);
+            this._toBufferBoolean(data);
         }
     }
 
-    _writeBufferStringSize(size: number) {
+    private _writeBufferStringSize(size: number) {
         if (size < 0) {
             throw new Error('Size of buffer must be positive!');
         }
@@ -261,28 +261,28 @@ class BufferSerializer {
         throw new Error(`Size of buffer is too large: ${size}`);
     }
 
-    toBufferObject(data: any) {
+    private _toBufferObject(data: any) {
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.object));
 
         for (const key in data) {
             // todo if key is number as string we convert it to number for optimization
             // we parse it only like a data, without inherited properties or else
             if (data.hasOwnProperty(key) && data[key] !== undefined) {
-                this.toBufferInternal(key);
-                this.toBufferInternal(data[key]);
+                this._toBufferInternal(key);
+                this._toBufferInternal(data[key]);
             }
         }
 
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.end));
     }
 
-    toBufferString(str: string) {
+    private _toBufferString(str: string) {
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.string));
         this._writeBufferStringSize(str.length);
         this._bufferList.push(Buffer.from(str));
     }
 
-    toBufferNumber(num: number | bigint) {
+    private _toBufferNumber(num: number | bigint) {
         // todo check is integer/double
 
         let buff;
@@ -314,7 +314,7 @@ class BufferSerializer {
 
     }
 
-    toBufferBoolean(bool: boolean) {
+    private _toBufferBoolean(bool: boolean) {
         if (bool) {
             this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.true));
         } else {
@@ -322,14 +322,14 @@ class BufferSerializer {
         }
     }
 
-    toBufferArray(arr: any[]) {
+    private _toBufferArray(arr: any[]) {
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.array));
         const arrLength = arr.length;
 
         if (arrLength) {
             for (const arrValue of arr) {
                 if (arrValue !== undefined) {
-                    this.toBufferInternal(arrValue);
+                    this._toBufferInternal(arrValue);
                 }
             }
         }
@@ -337,45 +337,45 @@ class BufferSerializer {
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.end));
     }
 
-    toBufferNull() {
+    private _toBufferNull() {
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.null));
     }
 
-    toBufferDate(data: Date) {
+    private _toBufferDate(data: Date) {
         // need to remember max/min ms date between ±8,640,000,000,000,000 milliseconds it less than Number.MAX_SAFE_INTEGER
         // but we need add uint64 for number bigger than 4,294,967,295 (uint32)
         // and signed int for negative numbers or we can add special chars ('-', '+', etc) and use only uint
         const ms = data.getTime();
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.date));
-        this.toBufferNumber(ms);
+        this._toBufferNumber(ms);
     }
 
-    toBufferMap(data: Map<unknown, unknown>) {
+    private _toBufferMap(data: Map<any, any>) {
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.map));
 
         data.forEach((value, key) => {
             if (value !== undefined) {
-                this.toBufferInternal(key);
-                this.toBufferInternal(value);
+                this._toBufferInternal(key);
+                this._toBufferInternal(value);
             }
         });
 
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.end));
     }
 
-    toBufferSet(data: Set<any>) {
+    private _toBufferSet(data: Set<any>) {
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.set));
 
         data.forEach((value) => {
             if (value !== undefined) {
-                this.toBufferInternal(value);
+                this._toBufferInternal(value);
             }
         })
 
         this._bufferList.push(Buffer.alloc(1, TYPE_MASKS.end));
     }
 
-    _readBufferStringSize(buff: Buffer) {
+    private _readBufferStringSize(buff: Buffer) {
         if (!(buff[this._bufferReaderOffset] & 0x80)) {
             const result = buff.readUInt8(this._bufferReaderOffset);
             this._bufferReaderOffset += 1;
@@ -404,10 +404,10 @@ class BufferSerializer {
 
         this._bufferReaderOffset += 1;
 
-        return this.fromBufferInternal(buffer);
+        return this._fromBufferInternal(buffer);
     }
 
-    fromBufferInternal(buff: Buffer): any {
+    private _fromBufferInternal(buff: Buffer): any {
         const code = buff.readUInt8(this._bufferReaderOffset);
 
         this._bufferReaderOffset += 1;
@@ -421,19 +421,19 @@ class BufferSerializer {
             case TYPE_MASKS.i32:
             case TYPE_MASKS.u64:
             case TYPE_MASKS.i64:
-                return this.fromBufferNumber(buff, code);
+                return this._fromBufferNumber(buff, code);
             case TYPE_MASKS.array:
-                return this.fromBufferArray(buff);
+                return this._fromBufferArray(buff);
             case TYPE_MASKS.object:
-                return this.fromBufferObject(buff);
+                return this._fromBufferObject(buff);
             case TYPE_MASKS.string:
-                return this.fromBufferString(buff);
+                return this._fromBufferString(buff);
             case TYPE_MASKS.date:
-                return this.fromBufferDate(buff);
+                return this._fromBufferDate(buff);
             case TYPE_MASKS.map:
-                return this.fromBufferMap(buff);
+                return this._fromBufferMap(buff);
             case TYPE_MASKS.set:
-                return this.fromBufferSet(buff);
+                return this._fromBufferSet(buff);
             case TYPE_MASKS.null:
                 return null;
             case TYPE_MASKS.true:
@@ -444,12 +444,12 @@ class BufferSerializer {
         }
     }
 
-    fromBufferArray(buff: Buffer) {
+    private _fromBufferArray(buff: Buffer) {
         const resultArr = [];
         let buffChunk = buff[this._bufferReaderOffset];
 
         while (buffChunk !== TYPE_MASKS.end) {
-            resultArr.push(this.fromBufferInternal(buff));
+            resultArr.push(this._fromBufferInternal(buff));
             buffChunk = buff[this._bufferReaderOffset];
         }
 
@@ -457,13 +457,13 @@ class BufferSerializer {
         return resultArr;
     }
 
-    fromBufferObject(buff: Buffer): object {
+    private _fromBufferObject(buff: Buffer): object {
         const resultObj: { [key: string]: any } = {};
         let buffChunk = buff[this._bufferReaderOffset];
 
         while(buffChunk !== TYPE_MASKS.end) {
-            const key = (this.fromBufferInternal(buff) as string);
-            resultObj[key] = this.fromBufferInternal(buff);
+            const key = (this._fromBufferInternal(buff) as string);
+            resultObj[key] = this._fromBufferInternal(buff);
             buffChunk = buff[this._bufferReaderOffset];
         }
 
@@ -472,9 +472,9 @@ class BufferSerializer {
         return resultObj;
     }
 
-    fromBufferDate(buff: Buffer) {
+    private _fromBufferDate(buff: Buffer) {
         const date = new Date();
-        const ms = this.fromBufferInternal(buff);
+        const ms = this._fromBufferInternal(buff);
 
         if (ms > Number.MAX_SAFE_INTEGER || ms < Number.MIN_SAFE_INTEGER) {
             throw new Error(`Can't decode date, invalid date number ${ms}`);
@@ -484,7 +484,7 @@ class BufferSerializer {
         return date;
     }
 
-    fromBufferString(buff: Buffer) {
+    private _fromBufferString(buff: Buffer) {
         let size = this._readBufferStringSize(buff);
         const result = buff.slice(this._bufferReaderOffset, this._bufferReaderOffset + size);
         this._bufferReaderOffset += size;
@@ -492,7 +492,7 @@ class BufferSerializer {
         return result.toString('binary');
     }
 
-    fromBufferNumber(buff: Buffer, code: number): number | BigInt {
+    private _fromBufferNumber(buff: Buffer, code: number): number | BigInt {
         let num;
 
         switch (code) {
@@ -532,14 +532,14 @@ class BufferSerializer {
         }
     }
 
-    fromBufferMap(buff: Buffer) {
+    private _fromBufferMap(buff: Buffer) {
         const resultMap = new Map();
 
         let buffChunk = buff[this._bufferReaderOffset];
 
         while(buffChunk !== TYPE_MASKS.end) {
-            const key = (this.fromBufferInternal(buff) as string);
-            resultMap.set(key, this.fromBufferInternal(buff));
+            const key = (this._fromBufferInternal(buff) as string);
+            resultMap.set(key, this._fromBufferInternal(buff));
             buffChunk = buff[this._bufferReaderOffset];
         }
 
@@ -549,12 +549,12 @@ class BufferSerializer {
 
     }
 
-    fromBufferSet(buff: Buffer) {
+    private _fromBufferSet(buff: Buffer) {
         const resultSet = new Set();
         let buffChunk = buff[this._bufferReaderOffset];
 
         while (buffChunk !== TYPE_MASKS.end) {
-            resultSet.add(this.fromBufferInternal(buff));
+            resultSet.add(this._fromBufferInternal(buff));
             buffChunk = buff[this._bufferReaderOffset];
         }
 
