@@ -19,7 +19,7 @@ const TYPE_MASKS = {
     'end': 0x21 // '!' = 0x21, use it for Object, Array, Map, Set
 }
 
-type Post1 = {
+type Post = {
     id: string;
     text: string;
     createAt: string;
@@ -30,7 +30,7 @@ type BufferSchema = {
     id: string;
     age: string,
     testSet: string,
-    posts: Post1[]
+    posts: Post[]
 };
 
 
